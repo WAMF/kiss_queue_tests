@@ -4,8 +4,7 @@ import 'package:test/test.dart';
 import 'dart:async';
 
 // Generic cleanup function type
-typedef QueueCleanup = void Function();
-
+typedef QueueFactoryCleanup<S> = void Function(QueueFactory<Order, S> factory);
 // Generic factory function type for creating factory instances
 typedef QueueFactoryProvider<S> = QueueFactory<Order, S> Function();
 
@@ -13,7 +12,7 @@ typedef QueueFactoryProvider<S> = QueueFactory<Order, S> Function();
 void runQueueTests<T extends Queue<Order, S>, S>({
   required String implementationName,
   required QueueFactoryProvider<S> factoryProvider,
-  required QueueCleanup cleanup,
+  QueueFactoryCleanup<S>? cleanup,
 }) {
   group('$implementationName - Order Processing System', () {
     late QueueFactory<Order, S> factory;
@@ -23,7 +22,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
     });
 
     tearDown(() {
-      cleanup();
+      cleanup?.call(factory);
     });
 
     test('should demonstrate simplified QueueMessage API', () async {

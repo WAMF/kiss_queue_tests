@@ -1,7 +1,7 @@
 # This package is a shared test suite and should only be used in test contexts.
 name: kiss_queue_tests
 description: A test suite for kiss_queue
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/WAMF/kiss_queue_tests
 
 environment:
