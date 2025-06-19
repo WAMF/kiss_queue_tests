@@ -13,6 +13,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
   required String implementationName,
   required QueueFactoryProvider<S> factoryProvider,
   QueueFactoryCleanup<S>? cleanup,
+  TestConfig testConfig = TestConfig.lenient,
 }) {
   group('$implementationName - Order Processing System', () {
     late QueueFactory<Order, S> factory;
@@ -37,6 +38,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act - Use the simplified .create() constructor
       await orderQueue.enqueue(QueueMessage.create(order));
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Assert
@@ -67,6 +69,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         payload: order,
       );
       await orderQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Assert
@@ -87,6 +90,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act - Use enqueuePayload helper method
       await orderQueue.enqueuePayload(order);
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Assert
@@ -98,6 +102,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       expect(dequeuedMessage.processedAt, isNotNull);
 
       await orderQueue.acknowledge(dequeuedMessage.id);
+      await Future.delayed(testConfig.operationDelay);
     });
 
     test('enqueue and enqueuePayload should work equivalently', () async {
@@ -119,6 +124,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       // Act - Test both methods
       await orderQueue.enqueue(QueueMessage.create(order1));
       await orderQueue.enqueuePayload(order2);
+      await Future.delayed(testConfig.operationDelay);
 
       final dequeued1 = await orderQueue.dequeue();
       final dequeued2 = await orderQueue.dequeue();
@@ -132,7 +138,9 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       expect(dequeued2.id, isNotEmpty);
 
       await orderQueue.acknowledge(dequeued1.id);
+      await Future.delayed(testConfig.operationDelay);
       await orderQueue.acknowledge(dequeued2.id);
+      await Future.delayed(testConfig.operationDelay);
     });
 
     test('should enqueue and dequeue orders successfully', () async {
@@ -148,6 +156,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act
       await orderQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Assert
@@ -173,7 +182,9 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
         // Act
         await orderQueue.enqueue(message);
+        await Future.delayed(testConfig.operationDelay);
         final firstDequeue = await orderQueue.dequeue();
+        await Future.delayed(testConfig.operationDelay);
         final secondDequeue = await orderQueue
             .dequeue(); // Should be null due to visibility timeout
 
@@ -190,9 +201,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       // Arrange
       final orderQueue = await factory.createQueue(
         'test-visibility-restore',
-        configuration: const QueueConfiguration(
-          visibilityTimeout: Duration(milliseconds: 100),
-        ),
+        configuration: testConfig.toQueueConfiguration(),
       );
       final order = Order(
         orderId: 'ORD-003',
@@ -204,10 +213,11 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act
       await orderQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
       await orderQueue.dequeue(); // Make message invisible
 
       // Wait for visibility timeout to expire
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(testConfig.visibilityTimeoutWait);
 
       final restoredMessage = await orderQueue.dequeue();
 
@@ -230,8 +240,10 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act
       await orderQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
       await orderQueue.acknowledge(dequeuedMessage!.id);
+      await Future.delayed(testConfig.consistencyDelay);
 
       // Try to dequeue again - should be null as message was acknowledged
       final nextMessage = await orderQueue.dequeue();
@@ -253,10 +265,12 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act
       await orderQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Simulate payment processing failure
       await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+      await Future.delayed(testConfig.consistencyDelay);
 
       // Message should be immediately available again
       final requeuedMessage = await orderQueue.dequeue();
@@ -274,7 +288,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         final deadLetterQueue = await factory.createQueue('test-dlq');
         final orderQueue = await factory.createQueue(
           'test-poison-messages',
-          configuration: QueueConfiguration.testing,
+          configuration: testConfig.toQueueConfiguration(),
           deadLetterQueue: deadLetterQueue,
         );
 
@@ -291,14 +305,17 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
         // Act - Process and fail multiple times
         await orderQueue.enqueue(message);
+        await Future.delayed(testConfig.operationDelay);
 
         // First attempt
         var dequeuedMessage = await orderQueue.dequeue();
         await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+        await Future.delayed(testConfig.consistencyDelay);
 
         // Second attempt
         dequeuedMessage = await orderQueue.dequeue();
         await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+        await Future.delayed(testConfig.consistencyDelay);
 
         // Third attempt should move to dead letter queue (maxReceiveCount = 2)
         final finalAttempt = await orderQueue.dequeue();
@@ -307,6 +324,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         expect(finalAttempt, isNull); // Main queue should be empty
 
         // Check dead letter queue
+        await Future.delayed(testConfig.consistencyDelay);
         final deadMessage = await deadLetterQueue.dequeue();
         expect(deadMessage, isNotNull);
         expect(deadMessage!.payload.orderId, equals('ORD-666'));
@@ -317,11 +335,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       // Arrange - Create queue with short retention
       final shortRetentionQueue = await factory.createQueue(
         'test-expiration',
-        configuration: const QueueConfiguration(
-          maxReceiveCount: 3,
-          visibilityTimeout: Duration(milliseconds: 100),
-          messageRetentionPeriod: Duration(seconds: 2),
-        ),
+        configuration: testConfig.toQueueConfiguration(),
       );
 
       final order = Order(
@@ -334,9 +348,12 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Act
       await shortRetentionQueue.enqueue(message);
+      await Future.delayed(testConfig.operationDelay);
 
       // Wait for message to expire
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(
+        testConfig.messageRetentionPeriod + testConfig.consistencyDelay,
+      );
 
       final dequeuedMessage = await shortRetentionQueue.dequeue();
 
@@ -360,6 +377,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       // Act - Enqueue all orders using simplified API
       for (final order in orders) {
         await orderQueue.enqueue(QueueMessage.create(order));
+        await Future.delayed(testConfig.operationDelay);
       }
 
       // Simulate processing some orders
@@ -407,21 +425,25 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       // Act - Process orders with different outcomes using simplified API
       for (int i = 0; i < orders.length; i++) {
         await orderQueue.enqueue(QueueMessage.create(orders[i]));
+        await Future.delayed(testConfig.operationDelay);
       }
 
       // Successfully process first order
       var msg = await orderQueue.dequeue();
       await orderQueue.acknowledge(msg!.id);
+      await Future.delayed(testConfig.operationDelay);
 
       // Reject second order permanently
       msg = await orderQueue.dequeue();
       await orderQueue.reject(msg!.id, requeue: false);
+      await Future.delayed(testConfig.operationDelay);
 
       // Leave third order in processing state
       await orderQueue.dequeue();
 
       // Assert - Verify functional behavior
       // No more visible messages should be available
+      await Future.delayed(testConfig.consistencyDelay);
       final noMoreMessages = await orderQueue.dequeue();
       expect(noMoreMessages, isNull);
     });
@@ -457,7 +479,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         // Arrange - Queue without dead letter queue
         final noDLQQueue = await factory.createQueue(
           'test-no-dlq',
-          configuration: const QueueConfiguration(maxReceiveCount: 2),
+          configuration: testConfig.toQueueConfiguration(),
         );
 
         final order = Order(
@@ -470,11 +492,13 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
         // Act - Exceed max receive count
         await noDLQQueue.enqueue(message);
+        await Future.delayed(testConfig.operationDelay);
 
         for (int i = 0; i < 3; i++) {
           final msg = await noDLQQueue.dequeue();
           if (msg != null) {
             await noDLQQueue.reject(msg.id, requeue: true);
+            await Future.delayed(testConfig.consistencyDelay);
           }
         }
 
@@ -554,6 +578,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
         // Act
         await factory.deleteQueue('delete-test');
+        await Future.delayed(testConfig.consistencyDelay);
 
         // Assert - Should not be able to retrieve deleted queue
         expect(

@@ -1,3 +1,7 @@
+## 0.0.5
+
+- Add test config to customise timeouts
+
 ## 0.0.4
 
 - Minor test fix, increase timeout
