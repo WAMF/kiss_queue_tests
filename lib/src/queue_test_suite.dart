@@ -188,7 +188,12 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
     test('should restore message visibility after timeout expires', () async {
       // Arrange
-      final orderQueue = await factory.createQueue('test-visibility-restore');
+      final orderQueue = await factory.createQueue(
+        'test-visibility-restore',
+        configuration: const QueueConfiguration(
+          visibilityTimeout: Duration(milliseconds: 100),
+        ),
+      );
       final order = Order(
         orderId: 'ORD-003',
         customerId: 'CUST-789',
@@ -309,13 +314,13 @@ void runQueueTests<T extends Queue<Order, S>, S>({
     );
 
     test('should handle message expiration and cleanup', () async {
-      // Arrange - Create queue with very short retention
+      // Arrange - Create queue with short retention
       final shortRetentionQueue = await factory.createQueue(
         'test-expiration',
         configuration: const QueueConfiguration(
           maxReceiveCount: 3,
           visibilityTimeout: Duration(milliseconds: 100),
-          messageRetentionPeriod: Duration(milliseconds: 50),
+          messageRetentionPeriod: Duration(seconds: 2),
         ),
       );
 
@@ -325,18 +330,14 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 99.99,
         items: ['Time-Sensitive Item'],
       );
-      final message = QueueMessage.withId(
-        id: 'msg-expired',
-        payload: order,
-        createdAt: DateTime.now().subtract(
-          const Duration(seconds: 1),
-        ), // Already expired
-      );
+      final message = QueueMessage.withId(id: 'msg-expired', payload: order);
 
       // Act
-      await shortRetentionQueue.enqueue(
-        message,
-      ); // Should not enqueue expired message
+      await shortRetentionQueue.enqueue(message);
+
+      // Wait for message to expire
+      await Future.delayed(const Duration(seconds: 3));
+
       final dequeuedMessage = await shortRetentionQueue.dequeue();
 
       // Assert
