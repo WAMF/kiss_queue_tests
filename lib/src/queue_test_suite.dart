@@ -101,7 +101,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       expect(dequeuedMessage.payload.amount, equals(199.99));
       expect(dequeuedMessage.processedAt, isNotNull);
 
-      await orderQueue.acknowledge(dequeuedMessage.id);
+      await orderQueue.acknowledge(dequeuedMessage.id!);
       await Future.delayed(testConfig.operationDelay);
     });
 
@@ -137,9 +137,9 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       expect(dequeued1.id, isNotEmpty);
       expect(dequeued2.id, isNotEmpty);
 
-      await orderQueue.acknowledge(dequeued1.id);
+      await orderQueue.acknowledge(dequeued1.id!);
       await Future.delayed(testConfig.operationDelay);
-      await orderQueue.acknowledge(dequeued2.id);
+      await orderQueue.acknowledge(dequeued2.id!);
       await Future.delayed(testConfig.operationDelay);
     });
 
@@ -242,7 +242,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       await orderQueue.enqueue(message);
       await Future.delayed(testConfig.operationDelay);
       final dequeuedMessage = await orderQueue.dequeue();
-      await orderQueue.acknowledge(dequeuedMessage!.id);
+      await orderQueue.acknowledge(dequeuedMessage!.id!);
       await Future.delayed(testConfig.consistencyDelay);
 
       // Try to dequeue again - should be null as message was acknowledged
@@ -269,7 +269,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       final dequeuedMessage = await orderQueue.dequeue();
 
       // Simulate payment processing failure
-      await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+      await orderQueue.reject(dequeuedMessage!.id!, requeue: true);
       await Future.delayed(testConfig.consistencyDelay);
 
       // Message should be immediately available again
@@ -309,12 +309,12 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
         // First attempt
         var dequeuedMessage = await orderQueue.dequeue();
-        await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+        await orderQueue.reject(dequeuedMessage!.id!, requeue: true);
         await Future.delayed(testConfig.consistencyDelay);
 
         // Second attempt
         dequeuedMessage = await orderQueue.dequeue();
-        await orderQueue.reject(dequeuedMessage!.id, requeue: true);
+        await orderQueue.reject(dequeuedMessage!.id!, requeue: true);
         await Future.delayed(testConfig.consistencyDelay);
 
         // Third attempt should move to dead letter queue (maxReceiveCount = 2)
@@ -430,12 +430,12 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Successfully process first order
       var msg = await orderQueue.dequeue();
-      await orderQueue.acknowledge(msg!.id);
+      await orderQueue.acknowledge(msg!.id!);
       await Future.delayed(testConfig.operationDelay);
 
       // Reject second order permanently
       msg = await orderQueue.dequeue();
-      await orderQueue.reject(msg!.id, requeue: false);
+      await orderQueue.reject(msg!.id!, requeue: false);
       await Future.delayed(testConfig.operationDelay);
 
       // Leave third order in processing state
@@ -497,7 +497,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         for (int i = 0; i < 3; i++) {
           final msg = await noDLQQueue.dequeue();
           if (msg != null) {
-            await noDLQQueue.reject(msg.id, requeue: true);
+            await noDLQQueue.reject(msg.id!, requeue: true);
             await Future.delayed(testConfig.consistencyDelay);
           }
         }
