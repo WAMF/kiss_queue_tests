@@ -1,3 +1,8 @@
+
+## 0.1.1
+
+- Removed deprecated tests
+
 ## 0.1.0
 
 - Add test from teh base interface package

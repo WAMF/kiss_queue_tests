@@ -53,31 +53,6 @@ void runQueueTests<T extends Queue<Order, S>, S>({
       expect(dequeuedMessage.toString(), contains(dequeuedMessage.id));
     });
 
-    test('should support custom IDs when needed', () async {
-      // Arrange
-      final orderQueue = await factory.createQueue('test-custom-id');
-      final order = Order(
-        orderId: 'ORD-CUSTOM',
-        customerId: 'CUST-456',
-        amount: 149.99,
-        items: ['Premium Widget'],
-      );
-
-      // Act - Use withId constructor for deterministic testing
-      final message = QueueMessage.withId(
-        id: 'custom-test-id-123',
-        payload: order,
-      );
-      await orderQueue.enqueue(message);
-      await Future.delayed(testConfig.operationDelay);
-      final dequeuedMessage = await orderQueue.dequeue();
-
-      // Assert
-      expect(dequeuedMessage, isNotNull);
-      expect(dequeuedMessage!.id, equals('custom-test-id-123'));
-      expect(dequeuedMessage.payload.orderId, equals('ORD-CUSTOM'));
-    });
-
     test('should enqueuePayload with auto-generated IDs', () async {
       // Arrange
       final orderQueue = await factory.createQueue('test-enqueuePayload');
@@ -298,10 +273,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
           amount: 13.13,
           items: ['Cursed Widget'],
         );
-        final message = QueueMessage.withId(
-          id: 'msg-poison',
-          payload: problematicOrder,
-        );
+        final message = QueueMessage.create(problematicOrder);
 
         // Act - Process and fail multiple times
         await orderQueue.enqueue(message);
@@ -344,7 +316,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 99.99,
         items: ['Time-Sensitive Item'],
       );
-      final message = QueueMessage.withId(id: 'msg-expired', payload: order);
+      final message = QueueMessage.create(order);
 
       // Act
       await shortRetentionQueue.enqueue(message);
@@ -488,7 +460,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
           amount: 99.99,
           items: ['No DLQ Item'],
         );
-        final message = QueueMessage.withId(id: 'no-dlq-msg', payload: order);
+        final message = QueueMessage.create(order);
 
         // Act - Exceed max receive count
         await noDLQQueue.enqueue(message);
@@ -508,39 +480,6 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         expect(finalAttempt, isNull);
       },
     );
-
-    test('should test EventQueueMessage equality and hashCode', () {
-      // Arrange
-      final order = Order(
-        orderId: 'TEST',
-        customerId: 'CUST',
-        amount: 100,
-        items: [],
-      );
-      final now = DateTime.now();
-
-      final message1 = QueueMessage.withId(
-        id: 'test-id',
-        payload: order,
-        createdAt: now,
-      );
-      final message2 = QueueMessage.withId(
-        id: 'test-id',
-        payload: order,
-        createdAt: now,
-      );
-      final message3 = QueueMessage.withId(
-        id: 'different-id',
-        payload: order,
-        createdAt: now,
-      );
-
-      // Assert
-      expect(message1, equals(message2));
-      expect(message1.hashCode, equals(message2.hashCode));
-      expect(message1, isNot(equals(message3)));
-      expect(message1.hashCode, isNot(equals(message3.hashCode)));
-    });
 
     // Factory-specific tests
     group('Queue Factory', () {
