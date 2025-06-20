@@ -1,3 +1,6 @@
+## 0.1.2
+
+- Removed message ID matching expects
 
 ## 0.1.1
 

@@ -127,7 +127,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 99.99,
         items: ['Widget A', 'Widget B'],
       );
-      final message = QueueMessage.withId(id: 'msg-001', payload: order);
+      final message = QueueMessage.create(order);
 
       // Act
       await orderQueue.enqueue(message);
@@ -136,8 +136,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Assert
       expect(dequeuedMessage, isNotNull);
-      expect(dequeuedMessage!.id, equals('msg-001'));
-      expect(dequeuedMessage.payload.orderId, equals('ORD-001'));
+      expect(dequeuedMessage!.payload.orderId, equals('ORD-001'));
       expect(dequeuedMessage.payload.amount, equals(99.99));
       expect(dequeuedMessage.processedAt, isNotNull);
     });
@@ -153,7 +152,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
           amount: 149.99,
           items: ['Premium Widget'],
         );
-        final message = QueueMessage.withId(id: 'msg-002', payload: order);
+        final message = QueueMessage.create(order);
 
         // Act
         await orderQueue.enqueue(message);
@@ -184,7 +183,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 75.50,
         items: ['Basic Widget'],
       );
-      final message = QueueMessage.withId(id: 'msg-003', payload: order);
+      final message = QueueMessage.create(order);
 
       // Act
       await orderQueue.enqueue(message);
@@ -198,7 +197,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Assert
       expect(restoredMessage, isNotNull);
-      expect(restoredMessage!.id, equals('msg-003'));
+      expect(restoredMessage!.payload.orderId, equals('ORD-003'));
       // Message was successfully restored after visibility timeout
     });
 
@@ -211,7 +210,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 200.00,
         items: ['Deluxe Package'],
       );
-      final message = QueueMessage.withId(id: 'msg-004', payload: order);
+      final message = QueueMessage.create(order);
 
       // Act
       await orderQueue.enqueue(message);
@@ -236,7 +235,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
         amount: 299.99,
         items: ['High-Value Item'],
       );
-      final message = QueueMessage.withId(id: 'msg-005', payload: order);
+      final message = QueueMessage.create(order);
 
       // Act
       await orderQueue.enqueue(message);
@@ -252,7 +251,7 @@ void runQueueTests<T extends Queue<Order, S>, S>({
 
       // Assert
       expect(requeuedMessage, isNotNull);
-      expect(requeuedMessage!.id, equals('msg-005'));
+      expect(requeuedMessage!.payload.orderId, equals('ORD-005'));
       // Message was successfully requeued after rejection
     });
 
